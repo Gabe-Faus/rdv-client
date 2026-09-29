@@ -1,0 +1,19 @@
+{
+  "rdv_host": "pyp2p.mfcaetano.cc",
+  "rdv_port": 8080,
+  "namespace": "CIC",
+  "name": "alice",
+  "listen_port": 8081,
+  "register_ttl": 7200,
+  "discover_interval": 20,
+  "ping_interval": 30,
+  "ping_miss_limit": 3,
+  "max_reconnect_attempts": 5,
+  "base_backoff": 2,
+  "max_backoff": 60,
+  "lives": 6,
+  "max_players": 4,
+  "turn_timeout": 30,
+  "words_file": "words.txt",
+  "log_file": null
+}
