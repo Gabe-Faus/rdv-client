@@ -303,3 +303,58 @@ Para evitar abusos, o servidor impõe as seguintes restrições:
 3. Usa **DISCOVER** para consultar peers de um namespace.  
 4. Pode **UNREGISTER** ao sair.  
 5. Se o TTL expirar, o registro desaparece automaticamente.  
+
+
+---
+
+## Modos de Execução do Cliente
+
+O cliente suporta dois modos de operação:
+
+### 1. Modo Normal (Padrão)
+Execução interativa via CLI. O usuário comanda a aplicação manualmente através dos comandos disponíveis (`/create`, `/start`, `/join`, `/guess`, `/peers`, etc.).
+
+```bash
+python run_client.py
+# ou especificando parâmetros:
+python run_client.py --name Gabriel --namespace batcave --port 8081
+```
+
+### 2. Modo Autônomo (Bot / Test Server)
+Projetado para execução não supervisionada (unattended) em uma máquina virtual (VM) publicamente acessível na Internet. Permite que outros estudantes se conectem remotamente para testar suas próprias implementações contra um cliente sempre disponível.
+
+#### Como Funciona o Modo Autônomo
+1. **Ciclo Round-Robin de Palavras**: Lê o arquivo `words.txt` (ou outro definido via `--words-file`) e valida todas as palavras. Cada nova partida utiliza a próxima palavra da lista de forma circular (round-robin).
+2. **Prontidão Imediata**: Ao iniciar, o cliente cria automaticamente uma partida com status `OPEN` e aguarda a conexão de um jogador.
+3. **Início Automático**: Assim que um jogador se conecta e envia `JOIN`, a partida inicia automaticamente sem necessidade de intervenção manual.
+4. **Reinício e Próxima Partida**:
+   - Ao final da partida (vitória ou derrota), o cliente aguarda alguns segundos para envio do `GAME_OVER` e prepara imediatamente uma nova partida com a próxima palavra da lista.
+   - Se a partida ficar ociosa (o jogador parar de jogar) ou se o jogador se desconectar, após um tempo limite configurável (`idle_timeout`), o cliente cancela a partida atual e reinicia com a próxima palavra.
+
+#### Como Iniciar em Modo Autônomo
+
+Via linha de comando:
+```bash
+python run_client.py --autonomous --name bot --namespace batcave --port 8081 --idle-timeout 60
+```
+
+Ou configurando no `config.json`:
+```json
+{
+  "mode": "autonomous",
+  "autonomous": true,
+  "idle_timeout": 60,
+  "auto_max_players": 1,
+  "words_file": "words.txt"
+}
+```
+e executando:
+```bash
+python run_client.py
+```
+
+Parâmetros do modo autônomo:
+- `--autonomous`: Ativa o modo autônomo.
+- `--idle-timeout <segundos>`: Tempo limite de inatividade ou desconexão antes de reiniciar a partida (padrão: 60s).
+- `--words-file <caminho>`: Caminho para a lista de palavras (padrão: `words.txt`).
+- `--auto-max-players <número>`: Número máximo de jogadores por partida autônoma (padrão: 1).

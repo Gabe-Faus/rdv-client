@@ -44,6 +44,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rdv-port", type=int, help="Rendezvous server port")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"], help="Console log level")
     parser.add_argument("--log-file", help="Path to file for complete logging (includes DEBUG)")
+    parser.add_argument("--autonomous", action="store_true", help="Run in autonomous bot mode (unattended)")
+    parser.add_argument("--mode", choices=["normal", "autonomous"], help="Execution mode ('normal' or 'autonomous')")
+    parser.add_argument("--idle-timeout", type=float, help="Autonomous idle timeout in seconds (default: 60)")
+    parser.add_argument("--words-file", help="Path to words file (default: words.txt)")
+    parser.add_argument("--auto-max-players", type=int, help="Max players for autonomous matches (default: 1)")
     return parser.parse_args()
 
 
@@ -63,18 +68,38 @@ async def main_async() -> None:
         overrides["rdv_port"] = args.rdv_port
     if args.log_file:
         overrides["log_file"] = args.log_file
+    if args.autonomous:
+        overrides["autonomous"] = True
+        overrides["mode"] = "autonomous"
+    if args.mode:
+        overrides["mode"] = args.mode
+        overrides["autonomous"] = (args.mode.lower() == "autonomous")
+    if args.idle_timeout is not None:
+        overrides["idle_timeout"] = args.idle_timeout
+    if args.words_file:
+        overrides["words_file"] = args.words_file
+    if args.auto_max_players is not None:
+        overrides["auto_max_players"] = args.auto_max_players
 
     config = AppConfig.load(config_path=args.config, overrides=overrides)
     setup_logging(level_name=args.log_level, log_file=config.log_file)
 
     app = P2PForcaApp(config)
-    cli = CLI(app)
 
-    try:
-        await app.start()
-        await cli.run()
-    finally:
-        await app.stop()
+    if config.is_autonomous:
+        logging.info("[Main] Starting client in AUTONOMOUS mode (unattended bot)...")
+        try:
+            await app.start()
+            await app.run_autonomous()
+        finally:
+            await app.stop()
+    else:
+        cli = CLI(app)
+        try:
+            await app.start()
+            await cli.run()
+        finally:
+            await app.stop()
 
 
 def main() -> None:

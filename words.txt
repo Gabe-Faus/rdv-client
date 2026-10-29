@@ -4297,3 +4297,18 @@ sequence_numbers
 duplicate_tiebreaker
 lexicographical_order
 cli_terminal_ui
+2026-10-22 22:54:15.199 INFO [root] [Main] Starting client in AUTONOMOUS mode (unattended bot)...
+2026-10-22 22:54:15.201 INFO [P2PApp] Starting PyP2P-Forca client for Gabriel@batcave...
+2026-10-22 22:54:15.204 INFO [PeerServer] [PeerServer] Listening on 0.0.0.0:8081
+2026-10-22 22:54:16.185 INFO [RDV] [RDV] registered Gabriel@batcave as 189.6.13.41:8081 (ttl=7200)
+2026-10-22 22:54:16.372 INFO [PeerTable] [PeerTable] New peer discovered: bot@batcave at 189.6.13.41:8081
+2026-10-22 22:54:16.442 INFO [Autonomous] [Autonomous] Loaded 3271 valid words from words.txt
+2026-10-22 22:54:16.443 INFO [Autonomous] [Autonomous] Starting autonomous bot mode for peer Gabriel@batcave (idle_timeout=60s, max_players=1)
+2026-10-22 22:54:16.444 INFO [Host] [Host] Game Gabriel@batcave/ea829bbd created (word_length=6, lives=6)
+2026-10-22 22:54:16.445 INFO [Autonomous] [Autonomous] Match ready [Word #1/3271, length=6, lives=6]. Game ID: Gabriel@batcave/ea829bbd. Waiting for player to connect...
+2026-10-22 22:54:21.452 WARNING [PeerServer] [PeerServer] Failed to connect to bot@batcave (189.6.13.41:8081): 
+2026-10-22 22:54:21.453 INFO [PeerTable] [PeerTable] Peer bot@batcave marked STALE (attempt 1/5, retry in 2.0s)
+2026-10-22 22:54:29.240 WARNING [PeerServer] [PeerServer] Failed to connect to bot@batcave (189.6.13.41:8081): 
+2026-10-22 22:54:29.241 INFO [PeerTable] [PeerTable] Peer bot@batcave marked STALE (attempt 2/5, retry in 4.0s)
+2026-10-22 22:54:39.270 WARNING [PeerServer] [PeerServer] Failed to connect to bot@batcave (189.6.13.41:8081): 
+2026-10-22 22:54:39.270 INFO [PeerTable] [PeerTable] Peer bot@batcave marked STALE (attempt 3/5, retry in 8.0s)

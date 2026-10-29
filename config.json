@@ -1,8 +1,8 @@
 {
   "rdv_host": "pyp2p.mfcaetano.cc",
   "rdv_port": 8080,
-  "namespace": "CIC",
-  "name": "alice",
+  "namespace": "batcave",
+  "name": "Gabriel",
   "listen_port": 8081,
   "register_ttl": 7200,
   "discover_interval": 20,
@@ -15,5 +15,9 @@
   "max_players": 4,
   "turn_timeout": 30,
   "words_file": "words.txt",
+  "mode": "normal", 
+  "autonomous": false,
+  "idle_timeout": 60,
+  "auto_max_players": 1,
   "log_file": null
 }

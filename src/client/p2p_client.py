@@ -17,6 +17,7 @@ from src.client.message_router import MessageRouter
 from src.client.game_host import GameHost
 from src.client.game_player import GamePlayer
 from src.client.hangman import normalize_word
+from src.client.autonomous import AutonomousController
 
 logger = logging.getLogger("P2PApp")
 
@@ -48,6 +49,11 @@ class P2PForcaApp:
 
         self.host = GameHost(config=config, send_to_peer=self.send_to_peer)
         self.player = GamePlayer(config=config, send_to_peer=self.send_to_peer)
+
+        # Autonomous mode controller
+        self.autonomous: Optional[AutonomousController] = None
+        if self.config.is_autonomous:
+            self.autonomous = AutonomousController(self)
 
         # Pending GAME_LIST queries: msg_id -> dict of responses
         self._pending_game_lists: Dict[str, Dict[str, Any]] = {}
@@ -111,9 +117,14 @@ class P2PForcaApp:
         # Perform initial discovery right away
         await self.reconcile_with_rdv()
 
+        # 5. Start autonomous bot mode if enabled
+        if self.autonomous:
+            await self.autonomous.start()
+
     async def stop(self) -> None:
         """
         Graceful shutdown sequence:
+        - Stop autonomous controller
         - If host in game: GAME_OVER ABORTED
         - If player in game: LEAVE
         - BYE to all peers
@@ -124,6 +135,10 @@ class P2PForcaApp:
             return
         self._running = False
         logger.info("[P2PApp] Shutting down...")
+
+        # Stop autonomous mode
+        if self.autonomous:
+            await self.autonomous.stop()
 
         # 1. Stop background loops
         for t in (self._discover_task, self._refresh_task, self._reconnect_task):
@@ -272,6 +287,15 @@ class P2PForcaApp:
     async def _refresh_loop(self) -> None:
         while self._running:
             try:
+                # If RDV was unreachable at startup, retry registration quickly
+                if self.rdv.public_ip is None:
+                    await asyncio.sleep(5.0)
+                    if not self._running:
+                        break
+                    await self.rdv.register()
+                    await self.reconcile_with_rdv()
+                    continue
+
                 # Refresh at half of TTL
                 ttl = self.rdv.effective_ttl
                 refresh_interval = max(60, ttl // 2)
@@ -281,6 +305,8 @@ class P2PForcaApp:
                 break
             except Exception as e:
                 logger.warning(f"[P2PApp] Error in register refresh loop: {e}")
+                # Wait shorter before retry on error
+                await asyncio.sleep(10.0)
 
     async def _reconnect_loop(self) -> None:
         while self._running:
@@ -422,6 +448,17 @@ class P2PForcaApp:
     async def guess_word(self, word: str) -> Dict[str, Any]:
         return await self.player.guess_word(word)
 
+    async def run_autonomous(self) -> None:
+        """
+        Runs the client unattended in autonomous bot mode until stopped.
+        """
+        if not self.autonomous:
+            from src.client.autonomous import AutonomousController
+            self.autonomous = AutonomousController(self)
+            await self.autonomous.start()
+
+        await self.autonomous.wait_until_stopped()
+
     def get_status_summary(self) -> Dict[str, Any]:
         """
         Returns full status dictionary suitable for CLI or Flask API.
@@ -431,6 +468,13 @@ class P2PForcaApp:
             "public_ip": self.rdv.public_ip,
             "listen_port": self.config.listen_port,
             "namespace": self.config.namespace,
+            "autonomous": {
+                "enabled": self.config.is_autonomous,
+                "word_index": self.autonomous.word_index if self.autonomous else None,
+                "words_count": len(self.autonomous.words) if self.autonomous and self.autonomous.words else None,
+                "current_word": self.host.game.secret_word if self.host and self.host.game else None,
+                "idle_timeout": self.config.idle_timeout,
+            },
             "host_status": {
                 "status": self.host.status.value,
                 "game_id": self.host.game_id,

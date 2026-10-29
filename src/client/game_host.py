@@ -37,6 +37,13 @@ class GameHost:
         self._turn_timer_task: Optional[asyncio.Task] = None
         self._finished_cleanup_task: Optional[asyncio.Task] = None
 
+        # Callbacks for autonomous / bot mode
+        self.on_player_joined: Optional[Callable[[str], Awaitable[None]]] = None
+        self.on_player_rejoined: Optional[Callable[[str], Awaitable[None]]] = None
+        self.on_game_finished: Optional[Callable[[str, Optional[str], Optional[str]], Awaitable[None]]] = None
+        self.on_guess_activity: Optional[Callable[[], None]] = None
+        self.on_no_players_remaining: Optional[Callable[[str], Awaitable[None]]] = None
+
     @property
     def current_turn_player(self) -> Optional[str]:
         if not self.players or self.status != HostGameStatus.RUNNING:
@@ -156,7 +163,7 @@ class GameHost:
         src = msg.get("src", conn.peer_id)
         req_game_id = msg.get("game_id")
 
-        if req_game_id != self.game_id or self.status == HostGameStatus.IDLE:
+        if (req_game_id != self.game_id and req_game_id != self.config.peer_id) or self.status == HostGameStatus.IDLE:
             await self._send_join_err(conn, req_msg_id, req_game_id or "", "unknown_game")
             return
 
@@ -187,6 +194,8 @@ class GameHost:
                 "ttl": 1,
             }
             await conn.send_json(resp)
+            if self.on_player_joined:
+                await self.on_player_joined(src)
             return
 
         if self.status == HostGameStatus.RUNNING:
@@ -209,6 +218,8 @@ class GameHost:
                 await conn.send_json(resp)
                 # Follow up with current STATE
                 await self._send_state_to_player(src)
+                if self.on_player_rejoined:
+                    await self.on_player_rejoined(src)
             else:
                 await self._send_join_err(conn, req_msg_id, self.game_id, "game_running")
 
@@ -248,11 +259,14 @@ class GameHost:
 
             if self.status == HostGameStatus.RUNNING:
                 if len(self.players) == 0:
-                    logger.info("[Host] No players remaining — aborting game")
-                    if self.game:
-                        self.game.abort(reason="no_players")
-                    self._cancel_timers()
-                    self.status = HostGameStatus.IDLE
+                    if self.on_no_players_remaining:
+                        await self.on_no_players_remaining(src)
+                    else:
+                        logger.info("[Host] No players remaining — aborting game")
+                        if self.game:
+                            self.game.abort(reason="no_players")
+                        self._cancel_timers()
+                        self.status = HostGameStatus.IDLE
                 else:
                     if is_turn:
                         self.current_turn_index = self.current_turn_index % len(self.players)
@@ -264,6 +278,9 @@ class GameHost:
         """
         Handles GUESS from player.
         """
+        if self.on_guess_activity:
+            self.on_guess_activity()
+
         req_msg_id = msg.get("msg_id", str(uuid.uuid4()))
         src = msg.get("src", conn.peer_id)
         letter = msg.get("letter")
@@ -308,7 +325,10 @@ class GameHost:
             winner = self.game.winner
             logger.info(f"[Host] Game {self.game_id} finished: {result} by {winner}")
             await self._broadcast_game_over(result=result, word=self.game.secret_word, winner=winner)
-            self._transition_to_finished()
+            if self.on_game_finished:
+                await self.on_game_finished(result, self.game.secret_word, winner)
+            else:
+                self._transition_to_finished()
         else:
             # Advance turn
             self.current_turn_index = (self.current_turn_index + 1) % len(self.players)
@@ -351,11 +371,14 @@ class GameHost:
             self.players.remove(player_id)
 
             if len(self.players) == 0:
-                logger.info("[Host] No players remaining — aborting game")
-                if self.game:
-                    self.game.abort(reason="no_players")
-                self._cancel_timers()
-                self.status = HostGameStatus.IDLE
+                if self.on_no_players_remaining:
+                    await self.on_no_players_remaining(player_id)
+                else:
+                    logger.info("[Host] No players remaining — aborting game")
+                    if self.game:
+                        self.game.abort(reason="no_players")
+                    self._cancel_timers()
+                    self.status = HostGameStatus.IDLE
             else:
                 if is_turn:
                     self.current_turn_index = self.current_turn_index % len(self.players)

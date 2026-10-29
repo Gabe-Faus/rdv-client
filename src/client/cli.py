@@ -99,6 +99,9 @@ class CLI:
         elif cmd == "/log":
             self._cmd_log(args)
 
+        elif cmd in ("/mode", "/autonomous"):
+            await self._cmd_mode(args)
+
         elif cmd in ("/quit", "/exit"):
             self._running = False
             await self.app.stop()
@@ -123,6 +126,7 @@ Available commands:
   /guess <letter>                  Guess a single letter (a-z)
   /word <word>                     Guess the whole word
   /status                          Display current game status
+  /mode [normal | autonomous]      View or change execution mode
   /log <LEVEL>                     Set log level (DEBUG, INFO, WARNING, ERROR)
   /help                            Show this help message
   /quit                            Gracefully leave games, disconnect peers, and exit
@@ -304,3 +308,28 @@ Available commands:
             return
         logging.getLogger().setLevel(level)
         print(f"[CLI] Log level set to {lvl_str}")
+
+    async def _cmd_mode(self, args: List[str]) -> None:
+        if not args:
+            cur_mode = "autonomous" if (self.app.autonomous and self.app.autonomous._running) else "normal"
+            print(f"[CLI] Current execution mode: {cur_mode.upper()}")
+            return
+
+        sub = args[0].lower()
+        if sub in ("autonomous", "auto", "on", "start"):
+            if not self.app.autonomous:
+                from src.client.autonomous import AutonomousController
+                self.app.autonomous = AutonomousController(self.app)
+            if not self.app.autonomous._running:
+                await self.app.autonomous.start()
+                print("[CLI] Switched to AUTONOMOUS mode. Client is now hosting autonomous matches.")
+            else:
+                print("[CLI] Already running in AUTONOMOUS mode.")
+        elif sub in ("normal", "off", "stop"):
+            if self.app.autonomous and self.app.autonomous._running:
+                await self.app.autonomous.stop()
+                print("[CLI] Switched to NORMAL mode.")
+            else:
+                print("[CLI] Already in NORMAL mode.")
+        else:
+            print("[CLI] Usage: /mode [normal|autonomous]")

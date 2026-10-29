@@ -10,8 +10,8 @@ from typing import Optional, Dict, Any
 class AppConfig:
     rdv_host: str = "pyp2p.mfcaetano.cc"
     rdv_port: int = 8080
-    namespace: str = "CIC"
-    name: str = "alice"
+    namespace: str = "batcave"
+    name: str = "Gabriel"
     listen_port: int = 8081
     register_ttl: int = 7200
     discover_interval: int = 20
@@ -25,10 +25,19 @@ class AppConfig:
     turn_timeout: int = 30
     words_file: str = "words.txt"
     log_file: Optional[str] = None
+    autonomous: bool = False
+    mode: str = "normal"
+    idle_timeout: float = 60.0
+    auto_max_players: int = 1
+    reset_delay: float = 3.0
 
     @property
     def peer_id(self) -> str:
         return f"{self.name}@{self.namespace}"
+
+    @property
+    def is_autonomous(self) -> bool:
+        return self.autonomous or (isinstance(self.mode, str) and self.mode.strip().lower() == "autonomous")
 
     @classmethod
     def load(cls, config_path: Optional[str] = None, overrides: Optional[Dict[str, Any]] = None) -> AppConfig:

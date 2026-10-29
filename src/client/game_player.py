@@ -78,7 +78,8 @@ class GamePlayer:
                 self.game_id = game_id
                 self.host_id = host_peer_id
                 rejoin = resp.get("rejoin", False)
-                self.status = PlayerGameStatus.PLAYING if rejoin else PlayerGameStatus.JOINED
+                if self.status != PlayerGameStatus.PLAYING:
+                    self.status = PlayerGameStatus.PLAYING if rejoin else PlayerGameStatus.JOINED
                 self.players = resp.get("players", [])
                 rejoin_str = "rejoined" if rejoin else "joined"
                 logger.info(f"[Player] Successfully {rejoin_str} game {game_id}")
